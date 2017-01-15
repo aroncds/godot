@@ -110,7 +110,8 @@ bool Tween::_set(const StringName& p_name, const Variant& p_value) {
 
 	if (name=="playback/speed" || name=="speed") { //bw compatibility
 		set_speed_scale(p_value);
-
+	} else if (name=="playback/duration" || name=="duration"){
+		set_duration(p_value);
 	} else if (name=="playback/active") {
 		set_active(p_value);
 
@@ -144,6 +145,7 @@ void Tween::_get_property_list(List<PropertyInfo> *p_list) const {
 	p_list->push_back( PropertyInfo( Variant::BOOL, "playback/active", PROPERTY_HINT_NONE,"" ) );
 	p_list->push_back( PropertyInfo( Variant::BOOL, "playback/repeat", PROPERTY_HINT_NONE,"" ) );
 	p_list->push_back( PropertyInfo( Variant::REAL, "playback/speed", PROPERTY_HINT_RANGE, "-64,64,0.01") );
+	p_list->push_back( PropertyInfo( Variant::INT, "playback/duration", PROPERTY_HINT_RANGE, "0") );
 }
 
 void Tween::_notification(int p_what) {
@@ -194,6 +196,10 @@ void Tween::_bind_methods() {
 
 	ClassDB::bind_method(_MD("set_speed_scale","speed"),&Tween::set_speed_scale);
 	ClassDB::bind_method(_MD("get_speed_scale"),&Tween::get_speed_scale);
+
+	ClassDB::bind_method(_MD("set_duration","duration"), &Tween::set_duration);
+	ClassDB::bind_method(_MD("get_duration"), &Tween::get_duration);
+	ClassDB::bind_method(_MD("get_max_duration"), &Tween::get_max_duration);
 
 	ClassDB::bind_method(_MD("set_tween_process_mode","mode"),&Tween::set_tween_process_mode);
 	ClassDB::bind_method(_MD("get_tween_process_mode"),&Tween::get_tween_process_mode);
@@ -536,7 +542,12 @@ void Tween::_tween_process(float p_delta) {
 
 	if (speed_scale == 0)
 		return;
-	p_delta *= speed_scale;
+
+	if (tween_duration != 0 && max_duration > 0){
+		p_delta /= tween_duration / max_duration;
+	}else{
+		p_delta *= speed_scale;
+	}
 
 	pending_update ++;
 	// if repeat and all interpolates was finished then reset all interpolates
@@ -707,6 +718,29 @@ float Tween::get_speed_scale() const {
 	return speed_scale;
 }
 
+void Tween::set_duration(float p_duration){
+
+	tween_duration = p_duration;
+}
+
+float Tween::get_duration() const{
+
+	return tween_duration;
+}
+
+float Tween::get_max_duration() const{
+
+	return max_duration;
+}
+
+void Tween::_add_duration(InterpolateData& p_data){
+	max_duration += (p_data.duration + p_data.delay) * 1000;
+}
+
+void Tween::_remove_duration(InterpolateData& p_data){
+	max_duration -= (p_data.duration + p_data.delay) * 1000;
+}
+
 bool Tween::start() {
 
 	set_active(true);
@@ -842,6 +876,8 @@ void Tween::_remove(Object *p_object, String p_key, bool first_only) {
 		}
 	}
 	for(List<List<InterpolateData>::Element *>::Element *E=for_removal.front();E;E=E->next()) {
+		InterpolateData& data = E->get()->get();
+		_remove_duration(data);
 		interpolates.erase(E->get());
 	}
 }
@@ -855,6 +891,7 @@ bool Tween::remove_all() {
 	set_active(false);
 	_set_process(false);
 	interpolates.clear();
+	max_duration = 0;
 	return true;
 }
 
@@ -1088,6 +1125,7 @@ bool Tween::interpolate_property(Object *p_object
 		return false;
 
 	interpolates.push_back(data);
+	_add_duration(data);
 	return true;
 }
 
@@ -1147,6 +1185,7 @@ bool Tween::interpolate_method(Object *p_object
 		return false;
 
 	interpolates.push_back(data);
+	_add_duration(data);
 	return true;
 }
 
@@ -1213,6 +1252,7 @@ bool Tween::interpolate_callback(Object *p_object
 	pending_update ++;
 	interpolates.push_back(data);
 	pending_update --;
+	_add_duration(data);
 	return true;
 }
 
@@ -1278,6 +1318,7 @@ bool Tween::interpolate_deferred_callback(Object *p_object
 	pending_update ++;
 	interpolates.push_back(data);
 	pending_update --;
+	_add_duration(data);
 	return true;
 }
 
@@ -1346,6 +1387,7 @@ bool Tween::follow_property(Object *p_object
 	data.delay = p_delay;
 
 	interpolates.push_back(data);
+	_add_duration(data);
 	return true;
 }
 
@@ -1415,6 +1457,7 @@ bool Tween::follow_method(Object *p_object
 	data.delay = p_delay;
 
 	interpolates.push_back(data);
+	_add_duration(data);
 	return true;
 }
 
@@ -1487,6 +1530,7 @@ bool Tween::targeting_property(Object *p_object
 		return false;
 
 	interpolates.push_back(data);
+	_add_duration(data);
 	return true;
 }
 
@@ -1561,6 +1605,7 @@ bool Tween::targeting_method(Object *p_object
 		return false;
 
 	interpolates.push_back(data);
+	_add_duration(data);
 	return true;
 }
 
@@ -1573,6 +1618,8 @@ Tween::Tween() {
 	repeat=false;
 	speed_scale=1;
 	pending_update=0;
+	tween_duration=0;
+	max_duration=0;
 }
 
 Tween::~Tween() {

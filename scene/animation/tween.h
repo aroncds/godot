@@ -106,6 +106,8 @@ private:
 	bool active;
 	bool repeat;
 	float speed_scale;
+	float max_duration;
+	float tween_duration;
 	mutable int pending_update;
 
 	List<InterpolateData> interpolates;
@@ -152,6 +154,9 @@ protected:
 	void _get_property_list(List<PropertyInfo> *p_list) const;
 	void _notification(int p_what);
 
+	void _add_duration(InterpolateData& p_data);
+	void _remove_duration(InterpolateData& p_data);
+
 	static void _bind_methods();
 
 public:
@@ -167,6 +172,11 @@ public:
 
 	void set_speed_scale(float p_speed);
 	float get_speed_scale() const;
+
+	void set_duration(float p_duration);
+	float get_duration() const;
+
+	float get_max_duration() const;
 
 	bool start();
 	bool reset(Object *p_node, String p_key);
