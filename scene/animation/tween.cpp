@@ -145,7 +145,7 @@ void Tween::_get_property_list(List<PropertyInfo> *p_list) const {
 	p_list->push_back( PropertyInfo( Variant::BOOL, "playback/active", PROPERTY_HINT_NONE,"" ) );
 	p_list->push_back( PropertyInfo( Variant::BOOL, "playback/repeat", PROPERTY_HINT_NONE,"" ) );
 	p_list->push_back( PropertyInfo( Variant::REAL, "playback/speed", PROPERTY_HINT_RANGE, "-64,64,0.01") );
-	p_list->push_back( PropertyInfo( Variant::INT, "playback/duration", PROPERTY_HINT_RANGE, "0") );
+	p_list->push_back( PropertyInfo( Variant::INT, "playback/duration", PROPERTY_HINT_NONE, "0") );
 }
 
 void Tween::_notification(int p_what) {
@@ -542,8 +542,8 @@ void Tween::_tween_process(float p_delta) {
 
 	if (speed_scale == 0)
 		return;
-
-	if (tween_duration != 0 && max_duration > 0){
+	
+	if (tween_duration > 0 && max_duration > 0){
 		p_delta /= tween_duration / max_duration;
 	}else{
 		p_delta *= speed_scale;
@@ -588,8 +588,7 @@ void Tween::_tween_process(float p_delta) {
 			_apply_tween_value(data, data.initial_val);
 		}
 
-		if(data.elapsed > (data.delay + data.duration)) {
-
+		if(data.elapsed > (data.delay + data.duration)){ 
 			data.elapsed = data.delay + data.duration;
 			data.finish = true;
 		}
@@ -734,7 +733,8 @@ float Tween::get_max_duration() const{
 }
 
 void Tween::_add_duration(InterpolateData& p_data){
-	max_duration += (p_data.duration + p_data.delay) * 1000;
+	max_duration += (((p_data.duration + p_data.delay) * 1000) - max_duration);
+	printf("%f\n", max_duration);
 }
 
 void Tween::_remove_duration(InterpolateData& p_data){
@@ -876,8 +876,7 @@ void Tween::_remove(Object *p_object, String p_key, bool first_only) {
 		}
 	}
 	for(List<List<InterpolateData>::Element *>::Element *E=for_removal.front();E;E=E->next()) {
-		InterpolateData& data = E->get()->get();
-		_remove_duration(data);
+		/*_remove_duration(E->get()->get());*/
 		interpolates.erase(E->get());
 	}
 }
